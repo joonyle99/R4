@@ -21,5 +21,5 @@ public interface IPointerInput
     event Action<Vector2> OnDrag;
     event Action<Vector2> OnDragEnd;
 
-    void Tick();
+    void Tick(float deltaTime);
 }

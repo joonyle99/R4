@@ -70,7 +70,7 @@ public class CameraController : MonoBehaviour, IGameStateListener<InGameState>
 
     }
 
-    public void Initialize(Transform target)
+    public void Initialize()
     {
         _mainCamera = GetComponent<Camera>();
 

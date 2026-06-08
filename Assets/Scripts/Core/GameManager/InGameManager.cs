@@ -32,7 +32,7 @@ public class InGameManager : MonoBehaviour
     {
         var deltaTime = Time.deltaTime;
         
-        _pointerInput?.Tick();
+        _pointerInput?.Tick(deltaTime);
         _player?.Tick(deltaTime);
     }
 
@@ -42,11 +42,11 @@ public class InGameManager : MonoBehaviour
         _cameraController = FindFirstObjectByType<CameraController>();
         _uiController = FindFirstObjectByType<UIController>();
         _player = FindFirstObjectByType<PlayerBehaviour>();
-
-        _cameraController.Initialize(_player.transform);
         _pointerInput = new PointerInput(_cameraController.MainCamera);
-        _player.Initialize(_cameraController, _pointerInput, null, Failure);
-        
+
+        _player.Initialize(_cameraController, _pointerInput, null, null, null);
+        _cameraController.Initialize();
+
         if (SoundManager.Instance != null) _gameStateController.OnStateChanged += SoundManager.Instance.OnStateChanged;
         _gameStateController.OnStateChanged += _cameraController.OnStateChanged;
         _gameStateController.OnStateChanged += _uiController.OnStateChanged;

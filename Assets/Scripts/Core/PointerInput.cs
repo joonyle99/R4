@@ -47,7 +47,7 @@ public class PointerInput : IPointerInput, IDisposable
     public event Action<Vector2> OnDrag;
     public event Action<Vector2> OnDragEnd;
 
-    public void Tick()
+    public void Tick(float deltaTime)
     {
         var currScreenPos = _positionAction.ReadValue<Vector2>();
         var currWorldPos = ScreenToWorldPos(currScreenPos);
