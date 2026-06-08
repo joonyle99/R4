@@ -8,7 +8,10 @@ public sealed class PlayerAimingState : StateBase<PlayerBehaviour>
         var pointerInput = owner.PointerInput;
         var pointerWorldPos = pointerInput.GetWorldPos;
 
-        owner.SlingBehaviour.ShowAiming(pointerWorldPos);
+        // owner.SlingBehaviour.ShowAiming(pointerWorldPos);
+        // owner.SetFacingDirection((Vector2)owner.transform.position - pointerWorldPos);
+
+        owner.Animator.CrossFade("Attach", 0.1f);
     }
 
     public override void Exit(PlayerBehaviour owner)
@@ -44,11 +47,10 @@ public sealed class PlayerAimingState : StateBase<PlayerBehaviour>
             return;
         }
 
-        // 유효 조준 유지 중 — 매 프레임 조준선 갱신 (어시스트 적용된 위치 기준)
-        owner.SlingBehaviour.ShowAiming(pointerWorldPos);
+        var dragStrength = owner.SlingBehaviour.ComupteDragStrength(pointerWorldPos);
+        var dragDir = (owner.GetPosition() - pointerWorldPos).normalized;
 
-        // var dragStrength = owner.SlingBehaviour.ComupteDragStrength(aimPos);
-        // var dragDir = ((Vector2)owner.transform.position - aimPos).normalized;
-        // Debug.Log($"dragStrength: {dragStrength} / dragDir: {dragDir}");
+        // 유효 조준 유지 중 — 매 프레임 조준선·방향 갱신 (어시스트 적용된 위치 기준)
+        owner.SlingBehaviour.ShowAiming(pointerWorldPos);
     }
 }

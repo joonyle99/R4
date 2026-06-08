@@ -6,6 +6,8 @@ public sealed class PlayerFallingState : StateBase<PlayerBehaviour>
     public override void Enter(PlayerBehaviour owner)
     {
         owner.SlingBehaviour.SetFlyingPhysics();
+
+        owner.Animator.CrossFade("Roll", 0.1f);
     }
 
     public override void Exit(PlayerBehaviour owner) { }

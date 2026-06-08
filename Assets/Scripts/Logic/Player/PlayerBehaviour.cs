@@ -2,37 +2,55 @@ using System;
 using UnityEngine;
 using JoonyleGameDevKit;
 using System.Collections;
+using System.Collections.Generic;
 
-public class PlayerBehaviour : SlingEntity, IBoundaryHitHandler
+public sealed class PlayerBehaviour : SlingEntity, IBoundaryHitHandler
 {
     public CameraController CameraController { get; private set; }
     public IPointerInput PointerInput { get; private set; }
-    private StateMachine<PlayerBehaviour> _fsm;
+
+    [SerializeField] private Transform _centerPoint;
+    public Transform CenterPoint => _centerPoint;
+    [SerializeField] private Transform _handPoint;
+    public Transform HandPoint => _handPoint;
+    [SerializeField] private Transform _footPoint;
+    public Transform FootPoint => _footPoint;
+
+    [Space]
 
     [SerializeField] private float _hitStopDuration = 0.1f;
     [SerializeField] private float _fallingMoveSpeed = 3f;
-    [SerializeField] private float _fallingJoystickRange = 150f;
-
     public float FallingMoveSpeed => _fallingMoveSpeed;
+    [SerializeField] private float _fallingJoystickRange = 150f;
     public float FallingJoystickRange => _fallingJoystickRange;
 
-    private bool _killedEnemy;
+    private Dictionary<Type, Transform> _stateAnchorMap = new();
+    private StateMachine<PlayerBehaviour> _fsm;
 
-    protected override bool isAttached => _fsm.CurrState is PlayerAttachedState;
-    protected override bool isFlying => _fsm.CurrState is PlayerBoostingState or PlayerFallingState;
+    public Transform CurrAnchorPoint => _stateAnchorMap.TryGetValue(_fsm.CurrState.GetType(), out var point) ? point : transform;
 
-    public void Initialize(CameraController cameraController, IPointerInput pointerInput, Action<Peg> onOccupy, Action onDead)
+    public void Initialize(CameraController cameraController, IPointerInput pointerInput, Action<int> onDamaged, Action onDead, Action<Peg> onOccupy)
     {
+        InitSingleEntity(onDamaged, onDead, onOccupy);
+
         CameraController = cameraController;
         PointerInput = pointerInput;
 
-        InitializeSingleEntity(onOccupy, onDead);
+        _stateAnchorMap = new Dictionary<Type, Transform>
+        {
+            { typeof(PlayerAttachedState), _handPoint },
+            { typeof(PlayerAimingState), _handPoint },
+            { typeof(PlayerBoostingState), _centerPoint },
+            { typeof(PlayerFallingState), _centerPoint },
+        };
 
         _fsm = new StateMachine<PlayerBehaviour>(this);
+
         _fsm.AddState(new PlayerAttachedState());
         _fsm.AddState(new PlayerAimingState());
         _fsm.AddState(new PlayerBoostingState());
         _fsm.AddState(new PlayerFallingState());
+
         _fsm.ChangeState<PlayerFallingState>();
 
         SlingBehaviour.SetActiveSling(true);
@@ -43,24 +61,36 @@ public class PlayerBehaviour : SlingEntity, IBoundaryHitHandler
 
     // ============ ... ============
 
-    protected override void OnOccupy(Peg peg)
+    public Vector2 GetPosition()
     {
-        _fsm.ChangeState<PlayerAttachedState>();
-
-        if (_killedEnemy)
-        {
-            _killedEnemy = false;
-            SlingBehaviour.SetActiveSling(true); // 보너스 행동
-        }
-        else
-        {
-            onOccupy?.Invoke(peg); // 일반 착지 → 턴 종료
-        }
+        return transform.position;
+    }
+    
+    public Vector2 GetAnchorPosition()
+    {
+        var anchor = CurrAnchorPoint;
+        return anchor.position;
     }
 
-    protected override void OnKill()
+    public void SetPosition(Vector2 targetPos)
     {
-        _killedEnemy = true;
+        var anchor = CurrAnchorPoint;
+        var offset = (Vector2)(anchor.position - transform.position);
+        Rigid.position = targetPos - offset;
+    }
+
+    // ============ ... ============
+
+    protected override void OnOccupy(Peg peg)
+    {
+        base.OnOccupy(peg);
+
+        _fsm.ChangeState<PlayerAttachedState>();
+    }
+
+    protected override void OnKill(EnemyBehaviour enemy)
+    {
+        base.OnKill(enemy);
 
         if (_fsm.CurrState is PlayerBoostingState)
         {
@@ -81,16 +111,15 @@ public class PlayerBehaviour : SlingEntity, IBoundaryHitHandler
 
     public void OnBoundaryHit()
     {
-        if (!isFlying) return;
         if (OccupyingPeg == null) return;
 
         Rigid.linearVelocity = Vector2.zero;
-        transform.position = OccupyingPeg.transform.position;
+        SetPosition(OccupyingPeg.transform.position);
 
         OccupyingPeg.TryOccupy(this);
 
         _fsm.ChangeState<PlayerAttachedState>();
 
-        onOccupy?.Invoke(OccupyingPeg);
+        // _onOccupy?.Invoke(OccupyingPeg);
     }
 }
