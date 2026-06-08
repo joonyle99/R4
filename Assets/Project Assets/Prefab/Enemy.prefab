@@ -154,7 +154,6 @@ GameObject:
   - component: {fileID: 7527847718065872906}
   - component: {fileID: 4666129598827529717}
   - component: {fileID: 8364181799893559536}
-  - component: {fileID: 1057667198581688699}
   m_Layer: 7
   m_Name: Enemy
   m_TagString: Untagged
@@ -309,22 +308,3 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
---- !u!114 &1057667198581688699
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6020548160775018359}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 16feb34f5083a9f44958ef0622659e2f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LaunchBehaviour
-  _aimingLinePointCount: 50
-  _aimingLineLength: 6
-  _minAimingDist: 1
-  _maxAimingDist: 15
-  _minShotSpeed: 20
-  _maxShotSpeed: 70
-  _magnetStrength: 25
