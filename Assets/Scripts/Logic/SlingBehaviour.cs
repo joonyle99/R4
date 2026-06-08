@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class SlingBehaviour : MonoBehaviour
@@ -38,6 +39,11 @@ public class SlingBehaviour : MonoBehaviour
 
     // ============ ... ============
 
+    public Vector2 GetPosition()
+    {
+        return transform.position;
+    }
+
     public void SetActiveSling(bool active)
     {
         _isActiveSling = active;
@@ -66,14 +72,14 @@ public class SlingBehaviour : MonoBehaviour
     // ComputeShotVelocity의 t와 동일한 기준이므로 카메라 zoom이 발사 세기와 일치한다.
     public float ComupteDragStrength(Vector2 aimPos)
     {
-        var dist = Vector2.Distance(transform.position, aimPos);
+        var dist = Vector2.Distance(GetPosition(), aimPos);
         return Mathf.Clamp01(dist / _maxAimingDist);
     }
 
     // 드래그 → 발사 초기 속도. 예측선과 실제 발사가 동일한 값을 쓰도록 한곳에서 계산한다.
     private Vector2 ComputeShotVelocity(Vector2 pullBackPos)
     {
-        var origin = (Vector2)transform.position;
+        var origin = GetPosition();
         var dir = (origin - pullBackPos).normalized;
         var dist = Vector2.Distance(pullBackPos, origin);
         var t = Mathf.Clamp01(dist / _maxAimingDist); // 당김 정도를 0 ~ 1로 정규화
@@ -85,7 +91,7 @@ public class SlingBehaviour : MonoBehaviour
 
     public Vector2 ComputePullBackPos(Vector2 targetPos)
     {
-        var origin = (Vector2)transform.position;
+        var origin = GetPosition();
         return origin - (targetPos - origin).normalized * _maxAimingDist;
     }
 
@@ -96,7 +102,7 @@ public class SlingBehaviour : MonoBehaviour
     // 비교만 하므로 sqrt(Vector2.Distance) 대신 sqrMagnitude로 양변 제곱 비교(_sqrMinAimingDist 캐싱).
     public bool IsValidAiming(Vector2 pullBackPos)
     {
-        var sqrDist = ((Vector2)transform.position - pullBackPos).sqrMagnitude;
+        var sqrDist = (GetPosition() - pullBackPos).sqrMagnitude;
         return sqrDist >= _sqrMinAimingDist;
     }
 
@@ -104,7 +110,7 @@ public class SlingBehaviour : MonoBehaviour
     // 같은 길이 안에서 — 세게 당기면(빠름) 거의 직선, 약하게 당기면(느림) 금방 떨어지는 포물선.
     public void ShowAiming(Vector2 pullBackPos)
     {
-        var origin = (Vector2)transform.position;
+        var origin = GetPosition();
         var velocity = ComputeShotVelocity(pullBackPos);
 
         _aimingLine.SetPosition(0, origin);
@@ -150,7 +156,14 @@ public class SlingBehaviour : MonoBehaviour
     // 목표 위치 방향으로 일정 속도로 이동. 부착 후 중심점으로 자연스럽게 끌려가는 후처리.
     public void Magnet(Vector2 target)
     {
-        _rigid.position = Vector2.MoveTowards(_rigid.position, target, _magnetStrength * Time.fixedDeltaTime);
+        var adjustedTarget = target;
+        var anchor = transform;
+        if (anchor != null)
+        {
+            var anchorOffset = (Vector2)(anchor.position - transform.position);
+            adjustedTarget = target - anchorOffset;
+        }
+        _rigid.position = Vector2.MoveTowards(_rigid.position, adjustedTarget, _magnetStrength * Time.fixedDeltaTime);
     }
 
     // ============ 발사 ============

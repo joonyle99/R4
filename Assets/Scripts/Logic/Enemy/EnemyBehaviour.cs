@@ -3,11 +3,8 @@ using UnityEngine;
 
 public abstract class EnemyBehaviour : CombatEntity
 {
-    public void Initialize(Transform playerTransform, Action onDead)
+    public void InitEnemyBehaviour(Action<int> onDamaged, Action onDead)
     {
-        this.onDead = onDead;
-        OnInitialize(playerTransform);
+        InitCombatEntity(onDamaged, onDead);
     }
-
-    protected virtual void OnInitialize(Transform playerTransform) { }
 }

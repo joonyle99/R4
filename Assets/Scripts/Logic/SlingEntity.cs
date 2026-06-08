@@ -6,33 +6,34 @@ using UnityEngine;
 public abstract class SlingEntity : CombatEntity
 {
     public Rigidbody2D Rigid { get; protected set; }
+    public Animator Animator { get; protected set; }
     public SlingBehaviour SlingBehaviour { get; protected set; }
-    public Peg OccupyingPeg { get; protected set; } // 점유 중인 말뚝
+
+    public Peg OccupyingPeg { get; protected set; }
 
     private bool _isSnapping;
 
-    protected Action<Peg> onOccupy;
+    private Action<Peg> _onOccupy;
+    private Action<EnemyBehaviour> _onHit;
+    private Action<EnemyBehaviour> _onKill;
 
-    protected abstract bool isAttached { get; }
-    protected abstract bool isFlying { get; }
-
-    protected void InitializeSingleEntity(Action<Peg> onOccupy, Action onDead)
+    protected void InitSingleEntity(Action<int> onDamaged, Action onDead, Action<Peg> onOccupy)
     {
-        Rigid = GetComponent<Rigidbody2D>();
+        InitCombatEntity(onDamaged, onDead);
 
-        SlingBehaviour = GetComponent<SlingBehaviour>();
+        _onOccupy = onOccupy;
+
+        Rigid = GetComponentInChildren<Rigidbody2D>();
+        Animator = GetComponentInChildren<Animator>();
+        SlingBehaviour = GetComponentInChildren<SlingBehaviour>();
         SlingBehaviour.Initialize(Rigid);
-
-        this.onOccupy = onOccupy;
-        this.onDead = onDead;
-
     }
 
     // ========= ... =========
 
     private void Occupy(Peg peg)
     {
-        if (!isFlying || peg == OccupyingPeg) return;
+        if (peg == OccupyingPeg) return;
 
         _isSnapping = true;
 
@@ -40,87 +41,117 @@ public abstract class SlingEntity : CombatEntity
         OnOccupy(peg);
     }
 
-    private void Occupying(Peg peg)
+    protected virtual void OnOccupy(Peg peg)
     {
-        if (isFlying || peg != OccupyingPeg || !_isSnapping) return;
+        _onOccupy?.Invoke(peg);
+    }
 
-        var sqrDist = ((Vector2)(transform.position - peg.transform.position)).sqrMagnitude;
-        if (sqrDist < 0.01f) _isSnapping = false;
+    private void Hit(EnemyBehaviour enemy)
+    {
+        OnHit(enemy);
+    }
 
-        SlingBehaviour.Magnet(peg.transform.position);
+    protected virtual void OnHit(EnemyBehaviour enemy)
+    {
+        _onHit?.Invoke(enemy);
+    }
+
+    private void Kill(EnemyBehaviour enemy)
+    {
+        OnKill(enemy);
+    }
+
+    protected virtual void OnKill(EnemyBehaviour enemy)
+    {
+        _onKill?.Invoke(enemy);
     }
 
     // ========= ... =========
 
-    protected override void HandleDead()
+    protected override void OnDamaged(int damage)
     {
+        base.OnDamaged(damage);
+    }
+
+    protected override void OnDead()
+    {
+        base.OnDead();
+
         OccupyingPeg?.TryVacate(this);
-        base.HandleDead();
     }
 
-    // ========= ... =========
-
-    protected abstract void OnOccupy(Peg peg);
-    protected virtual void OnKill() { }
-
-    // ============ 충돌 디스패치 ============
+    // ============ ... ============
 
     private void OnTriggerEnter2D(Collider2D collider)
     {
         if (collider.TryGetComponent<Peg>(out var peg))
         {
-            HandlePegCollision(peg);
-            return;
+            HandlePegTriggerEnter(peg);
         }
-
-        if (collider.TryGetComponent<EnemyBehaviour>(out var enemy))
+        else if (collider.TryGetComponent<EnemyBehaviour>(out var enemy))
         {
-            HandleEnemyCollision(enemy);
+            HandleEnemyTriggerEnter(enemy);
         }
-    }
-
-    private void HandlePegCollision(Peg peg)
-    {
-        if (peg == OccupyingPeg) return;
-        if (!isFlying) return;
-
-        if (peg.TryOccupy(this))
-        {
-            Occupy(peg);
-        }
-        else
-        {
-            var occupant = peg.CurrSlingEntity;
-            occupant.TakeDamage(attack);
-
-            if (occupant.IsDead && peg.TryOccupy(this))
-            {
-                OnKill();
-                Occupy(peg);
-            }
-        }
-    }
-
-    private void HandleEnemyCollision(EnemyBehaviour enemy)
-    {
-        if (!isFlying) return;
-
-        enemy.TakeDamage(attack);
-        if (enemy.IsDead)
-            OnKill();
     }
 
     private void OnTriggerStay2D(Collider2D collider)
     {
-        if (!collider.TryGetComponent<Peg>(out var peg)) return;
-
-        Occupying(peg);
+        if (collider.TryGetComponent<Peg>(out var peg))
+        {
+            HandlePegTriggerStay(peg);
+        }
     }
 
     private void OnTriggerExit2D(Collider2D collider)
     {
-        if (!collider.TryGetComponent<Peg>(out var peg)) return;
+        if (collider.TryGetComponent<Peg>(out var peg))
+        {
+            HandlePegTriggerExit(peg);
+        }
+    }
 
-        peg.TryVacate(this);
+    // ========= ... =========
+
+    private void HandlePegTriggerEnter(Peg peg)
+    {
+        if (peg.TryOccupy(this) && peg != OccupyingPeg)
+            Occupy(peg);
+    }
+
+    private void HandleEnemyTriggerEnter(EnemyBehaviour enemy)
+    {
+        if (!enemy.IsDead)
+        {
+            enemy.TakeDamage(attack);
+            Hit(enemy);
+            if (enemy.IsDead)
+                Kill(enemy);
+        }
+    }
+
+    // ========= ... =========
+
+    private void HandlePegTriggerStay(Peg peg)
+    {
+        if (peg == OccupyingPeg && _isSnapping)
+        {
+            var dist = SlingBehaviour.GetPosition() - (Vector2)peg.transform.position;
+            var sqrDist = dist.sqrMagnitude;
+            if (sqrDist < 0.01f)
+            {
+                _isSnapping = false;
+                return;
+            }
+
+            SlingBehaviour.Magnet(peg.transform.position);
+        }
+    }
+
+    // ========= ... =========
+
+    private void HandlePegTriggerExit(Peg peg)
+    {
+        if (peg.TryVacate(this) && peg == OccupyingPeg)
+            OccupyingPeg = null;
     }
 }
